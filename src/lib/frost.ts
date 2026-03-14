@@ -54,6 +54,7 @@ export interface SigningNonce {
 export function generateNonce(): SigningNonce {
   const randomBytes = crypto.getRandomValues(new Uint8Array(64));
   const secretBigInt = mod(bytesToNumberLE(randomBytes), L);
+  zeroMemory(randomBytes);
   const secret = secretBigInt === 0n ? 1n : secretBigInt;
   const secretBytes = numberToBytes32LE(secret);
   const commitmentPoint = G.multiply(secret);
@@ -65,7 +66,10 @@ export function scalarFromEntropy(entropy: Uint8Array): Uint8Array {
   const domainBytes = new TextEncoder().encode(DOMAIN_SEPARATOR);
   const input = concatBytes(entropy, domainBytes);
   const digest = sha512(input);
+  zeroMemory(input);
+  zeroMemory(entropy);
   const scalar = mod(bytesToNumberLE(digest), L);
+  zeroMemory(digest);
   return numberToBytes32LE(scalar);
 }
 

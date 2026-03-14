@@ -1,6 +1,6 @@
 import { validateMnemonic, mnemonicToEntropy } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { scalarFromEntropy, derivePublicShare } from './frost';
+import { scalarFromEntropy, derivePublicShare, zeroMemory } from './frost';
 
 export function isValidMnemonic(mnemonic: string): boolean {
   return validateMnemonic(mnemonic.trim().toLowerCase(), wordlist);
@@ -13,7 +13,9 @@ export function mnemonicToScalar(mnemonic: string): Uint8Array {
 
 export function mnemonicToPublicShare(mnemonic: string): Uint8Array {
   const scalar = mnemonicToScalar(mnemonic);
-  return derivePublicShare(scalar);
+  const publicShare = derivePublicShare(scalar);
+  zeroMemory(scalar);
+  return publicShare;
 }
 
 export function toBase64(bytes: Uint8Array): string {
