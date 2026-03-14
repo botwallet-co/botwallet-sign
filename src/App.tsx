@@ -12,56 +12,25 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-cream flex flex-col">
-      <nav style={{
-        height: '56px',
-        background: '#000',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '0 1.5rem',
-        position: 'sticky',
-        top: 0,
-        zIndex: 100,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <nav className="h-14 bg-black flex justify-between items-center px-6 sticky top-0 z-50">
+        <div className="flex items-center gap-3">
           <a
             href={request?.returnUrl || 'https://app.botwallet.co'}
-            style={{
-              color: 'rgba(255,255,255,0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              transition: 'color 0.15s',
-            }}
-            onMouseEnter={e => (e.currentTarget.style.color = '#fff')}
-            onMouseLeave={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.4)')}
+            className="text-white/40 hover:text-white transition-colors"
           >
             <ArrowLeft size={16} />
           </a>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.4rem' }}>
-            <span style={{
-              fontWeight: 900,
-              fontSize: '0.75rem',
-              letterSpacing: '0.15em',
-              color: '#fff',
-            }}>
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-black text-xs tracking-[0.15em] text-white">
               BOTWALLET
             </span>
-            <span style={{
-              fontWeight: 400,
-              fontSize: '0.6875rem',
-              letterSpacing: '0.1em',
-              color: 'rgba(255,255,255,0.45)',
-              textTransform: 'uppercase',
-              borderLeft: '1px solid rgba(255,255,255,0.15)',
-              paddingLeft: '0.4rem',
-              marginLeft: '0.05rem',
-            }}>
+            <span className="font-normal text-[11px] tracking-[0.1em] text-white/45 uppercase border-l border-white/15 pl-1.5">
               Signer
             </span>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <div className="flex items-center gap-3">
           {network && (
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${
               network === 'mainnet-beta'
@@ -74,18 +43,13 @@ export default function App() {
               {network === 'mainnet-beta' ? 'Mainnet' : 'Devnet'}
             </span>
           )}
-          <span style={{
-            fontSize: '0.6875rem',
-            fontWeight: 500,
-            letterSpacing: '0.05em',
-            color: 'rgba(255,255,255,0.35)',
-          }}>
+          <span className="text-[11px] font-medium tracking-[0.05em] text-white/35">
             Secure Signing
           </span>
         </div>
       </nav>
 
-      <main className="flex-1 max-w-md mx-auto w-full px-4 sm:px-5 py-5 sm:py-6">
+      <main className="flex-1 max-w-[480px] mx-auto w-full px-5 py-6">
         {request ? (
           <SigningFlow
             intentId={request.intentId}
@@ -99,18 +63,19 @@ export default function App() {
       </main>
 
       <footer className="border-t border-cream-dark">
-        <div className="max-w-md mx-auto px-5 py-4 text-center">
+        <div className="max-w-[480px] mx-auto px-5 py-4 text-center">
           <p className="text-[11px] text-warm-gray-light">
-            Keys are processed locally and never sent to any server.
+            Your key never leaves this browser ·{' '}
+            <a
+              href="https://github.com/botwallet-co/botwallet-sign"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-warm-gray hover:text-warm-black transition-colors"
+            >
+              Open source
+            </a>
+            {' '}· Verifiable
           </p>
-          <a
-            href="https://github.com/botwallet-co/botwallet-sign"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-warm-gray hover:text-warm-black transition-colors mt-0.5 inline-block"
-          >
-            Open source — Verify this code
-          </a>
         </div>
       </footer>
     </div>

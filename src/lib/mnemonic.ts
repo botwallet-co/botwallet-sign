@@ -8,14 +8,13 @@ export function isValidMnemonic(mnemonic: string): boolean {
 
 export function mnemonicToScalar(mnemonic: string): Uint8Array {
   const entropy = mnemonicToEntropy(mnemonic.trim().toLowerCase(), wordlist);
-  return scalarFromEntropy(new Uint8Array(entropy));
+  const entryCopy = new Uint8Array(entropy);
+  zeroMemory(entropy as Uint8Array);
+  return scalarFromEntropy(entryCopy);
 }
 
-export function mnemonicToPublicShare(mnemonic: string): Uint8Array {
-  const scalar = mnemonicToScalar(mnemonic);
-  const publicShare = derivePublicShare(scalar);
-  zeroMemory(scalar);
-  return publicShare;
+export function derivePublicShareFromScalar(scalar: Uint8Array): Uint8Array {
+  return derivePublicShare(scalar);
 }
 
 export function toBase64(bytes: Uint8Array): string {

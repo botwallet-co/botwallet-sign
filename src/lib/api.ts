@@ -53,8 +53,10 @@ export interface SigningIntentDetails {
   fee_usdc: string;
   from_address: string;
   from_name: string;
+  from_owner_name?: string | null;
   to_address: string;
   to_name: string | null;
+  to_owner_name?: string | null;
   network: string;
   action_type: string;
   fee_covered_by: string;

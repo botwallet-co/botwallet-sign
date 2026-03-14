@@ -1,20 +1,24 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { isValidMnemonic } from '../lib/mnemonic';
-import { AlertCircle, Eye, EyeOff, ClipboardPaste } from 'lucide-react';
+import { AlertCircle, ClipboardPaste, Check, RotateCcw, Eye, EyeOff } from 'lucide-react';
 
 interface Props {
   onValid: (mnemonic: string) => void;
+  onReset?: () => void;
   disabled?: boolean;
 }
 
-export default function MnemonicInput({ onValid, disabled }: Props) {
+export default function MnemonicInput({ onValid, onReset, disabled }: Props) {
   const [words, setWords] = useState<string[]>(Array(12).fill(''));
   const [error, setError] = useState<string | null>(null);
   const [showWords, setShowWords] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    inputRefs.current[0]?.focus();
+    if (!accepted) {
+      inputRefs.current[0]?.focus();
+    }
   }, []);
 
   const checkComplete = useCallback((updatedWords: string[]) => {
@@ -26,6 +30,7 @@ export default function MnemonicInput({ onValid, disabled }: Props) {
     const mnemonic = updatedWords.map(w => w.trim().toLowerCase()).join(' ');
     if (isValidMnemonic(mnemonic)) {
       setError(null);
+      setAccepted(true);
       onValid(mnemonic);
     } else {
       setError('Invalid recovery phrase. Please check each word carefully.');
@@ -33,7 +38,7 @@ export default function MnemonicInput({ onValid, disabled }: Props) {
   }, [onValid]);
 
   const handleWordChange = (index: number, value: string) => {
-    if (disabled) return;
+    if (disabled || accepted) return;
     const cleaned = value.toLowerCase().replace(/[^a-z]/g, '');
     const updated = [...words];
     updated[index] = cleaned;
@@ -51,7 +56,7 @@ export default function MnemonicInput({ onValid, disabled }: Props) {
   };
 
   const handleInputPaste = (index: number, e: React.ClipboardEvent<HTMLInputElement>) => {
-    if (disabled) return;
+    if (disabled || accepted) return;
     const text = e.clipboardData.getData('text');
     const pastedWords = text.trim().toLowerCase().split(/[\s,]+/).filter(Boolean);
     if (pastedWords.length <= 1) return;
@@ -81,8 +86,8 @@ export default function MnemonicInput({ onValid, disabled }: Props) {
     inputRefs.current[focusIdx]?.focus();
   };
 
-  const handlePaste = async () => {
-    if (disabled) return;
+  const handlePasteButton = async () => {
+    if (disabled || accepted) return;
     try {
       const text = await navigator.clipboard.readText();
       const pastedWords = text.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -95,41 +100,87 @@ export default function MnemonicInput({ onValid, disabled }: Props) {
         setError(`Expected 12 words, got ${pastedWords.length}. Paste your S1 recovery phrase.`);
       }
     } catch {
-      setError('Could not read clipboard. Please paste words individually.');
+      setError('Could not read clipboard. Please enter words manually.');
     }
   };
 
-  return (
-    <div className="bg-white rounded-card-lg border border-cream-dark shadow-sm overflow-hidden">
-      <div className="px-5 py-3 border-b border-cream-dark bg-cream/50 flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-medium text-warm-black">
-            Recovery Phrase
-          </h2>
-          <p className="text-[11px] text-warm-gray-light mt-0.5">
-            Key 1 (S1) — 12 words from your agent backup
-          </p>
-        </div>
-        <div className="flex items-center gap-1">
+  const handleReset = () => {
+    setAccepted(false);
+    setWords(Array(12).fill(''));
+    setError(null);
+    setShowWords(false);
+    onReset?.();
+    setTimeout(() => inputRefs.current[0]?.focus(), 50);
+  };
+
+  // ── Accepted state ──
+  if (accepted) {
+    return (
+      <div className="animate-fade-in">
+        <div className="bg-green-50 border border-green-200 rounded-[14px] p-4 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+            <Check className="w-4 h-4 text-status-success" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium text-green-800">Recovery phrase accepted</div>
+            <div className="text-xs text-green-600 mt-0.5">12 words verified · Ready to sign</div>
+          </div>
           <button
-            onClick={handlePaste}
+            onClick={handleReset}
             disabled={disabled}
-            className="p-1.5 rounded-lg hover:bg-cream transition-colors text-warm-gray hover:text-warm-black disabled:opacity-50"
-            title="Paste from clipboard"
+            className="text-xs text-green-600 hover:text-green-800 transition-colors flex items-center gap-1 shrink-0 disabled:opacity-50"
           >
-            <ClipboardPaste className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => setShowWords(!showWords)}
-            className="p-1.5 rounded-lg hover:bg-cream transition-colors text-warm-gray hover:text-warm-black"
-            title={showWords ? 'Hide words' : 'Show words'}
-          >
-            {showWords ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            <RotateCcw className="w-3 h-3" />
+            Change
           </button>
         </div>
       </div>
+    );
+  }
 
-      <div className="p-4 sm:p-5">
+  // ── Input state ──
+  return (
+    <div>
+      {/* Paste button */}
+      <button
+        onClick={handlePasteButton}
+        disabled={disabled}
+        className="w-full py-6 px-5 border-2 border-dashed border-cream-dark rounded-[14px]
+          hover:border-warm-gray-light hover:bg-cream/30 transition-all text-center
+          disabled:opacity-50 disabled:cursor-not-allowed group"
+      >
+        <ClipboardPaste className="w-5 h-5 text-warm-gray-light group-hover:text-warm-gray transition-colors mx-auto mb-2" />
+        <div className="text-sm font-medium text-warm-gray group-hover:text-warm-black transition-colors">
+          Paste your recovery phrase
+        </div>
+        <div className="text-xs text-warm-gray-light mt-1">Key 1 (S1) · 12 words</div>
+      </button>
+
+      {/* Divider label */}
+      <div className="w-full mt-3 mb-3 text-[12px] text-warm-gray-light text-center">
+        Or enter words manually
+      </div>
+
+      {/* Grid — always visible */}
+      <div>
+        <div className="flex items-center justify-end gap-1 mb-2">
+          <button
+            onClick={handlePasteButton}
+            disabled={disabled}
+            className="p-1 rounded-md hover:bg-cream transition-colors text-warm-gray-light hover:text-warm-gray disabled:opacity-50"
+            title="Paste from clipboard"
+          >
+            <ClipboardPaste className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={() => setShowWords(!showWords)}
+            className="p-1 rounded-md hover:bg-cream transition-colors text-warm-gray-light hover:text-warm-gray"
+            title={showWords ? 'Hide words' : 'Show words'}
+          >
+            {showWords ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
         <div className="grid grid-cols-3 gap-2">
           {words.map((word, i) => (
             <div key={i} className="relative">
@@ -157,14 +208,15 @@ export default function MnemonicInput({ onValid, disabled }: Props) {
             </div>
           ))}
         </div>
-
-        {error && (
-          <div className="mt-3 flex items-start gap-2 p-3 bg-red-50 rounded-lg">
-            <AlertCircle className="w-4 h-4 text-status-error mt-0.5 shrink-0" />
-            <span className="text-xs text-status-error">{error}</span>
-          </div>
-        )}
       </div>
+
+      {/* Error message */}
+      {error && (
+        <div className="mt-3 flex items-start gap-2 p-3 bg-red-50 rounded-lg animate-fade-in">
+          <AlertCircle className="w-4 h-4 text-status-error mt-0.5 shrink-0" />
+          <span className="text-xs text-status-error">{error}</span>
+        </div>
+      )}
     </div>
   );
 }
