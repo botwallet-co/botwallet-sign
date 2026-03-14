@@ -104,7 +104,7 @@ export default function App() {
             Keys are processed locally and never sent to any server.
           </p>
           <a
-            href="https://github.com/BotwalletHQ/botwallet-sign"
+            href="https://github.com/botwallet-co/botwallet-sign"
             target="_blank"
             rel="noopener noreferrer"
             className="text-[11px] text-warm-gray hover:text-warm-black transition-colors mt-0.5 inline-block"

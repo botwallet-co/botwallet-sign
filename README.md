@@ -22,7 +22,7 @@ At no point does the full private key exist in any single location.
 You can clone and run this yourself to verify the code or host your own instance:
 
 ```bash
-git clone https://github.com/BotwalletHQ/botwallet-sign.git
+git clone https://github.com/botwallet-co/botwallet-sign.git
 cd botwallet-sign
 npm install
 npm run dev
