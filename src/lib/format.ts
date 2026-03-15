@@ -4,8 +4,8 @@ export function shortenAddress(address: string, chars = 4): string {
 }
 
 export function getExplorerUrl(signature: string, network: string): string {
-  const base = 'https://solscan.io/tx/';
-  return network === 'mainnet-beta'
-    ? `${base}${signature}`
-    : `${base}${signature}?cluster=devnet`;
+  const isMainnet = network === 'mainnet-beta' || network === 'mainnet';
+  return isMainnet
+    ? `https://solscan.io/tx/${signature}`
+    : `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
 }
