@@ -232,24 +232,30 @@ export default function SigningFlow({ intentId, token, returnUrl, onNetwork }: P
       <>
         <ProgressBar stage={stage} />
         <div className="pt-8 animate-fade-in">
-          <div className="bg-white rounded-[20px] border border-cream-dark py-12 px-7 shadow-sm text-center">
-            <div className="relative w-16 h-16 mx-auto mb-5">
-              <div className="absolute inset-0 rounded-full border-2 border-cream-dark animate-pulse-slow" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <ShieldCheck className="w-7 h-7 text-warm-black" />
+          <div className="bg-white rounded-[20px] border border-cream-dark py-14 px-7 shadow-sm text-center">
+            <div className="signing-spinner mx-auto mb-6">
+              <svg className="signing-ring" viewBox="0 0 64 64">
+                <circle
+                  cx="32" cy="32" r="28"
+                  stroke="#F3F0EB" strokeWidth="2.5" fill="none"
+                />
+                <circle
+                  className="signing-ring-arc"
+                  cx="32" cy="32" r="28"
+                  stroke="#1A1817" strokeWidth="2.5" fill="none"
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="signing-icon">
+                <ShieldCheck className="w-6 h-6 text-warm-black" />
               </div>
             </div>
             <h2 className="text-base font-semibold text-warm-black mb-1.5">Signing Transaction</h2>
-            <p className="text-sm text-warm-gray">{signingStatus}</p>
-            <div className="w-44 h-[3px] rounded-full bg-cream-dark overflow-hidden mx-auto mt-5">
-              <div className="animate-progress h-full rounded-full" style={{
-                background: 'linear-gradient(90deg, #9A958F, #1A1817)',
-              }} />
-            </div>
-          </div>
-          <div className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-warm-gray-light">
-            <Lock className="w-3 h-3" />
-            <span>Keys processed in your browser only</span>
+            <p className="text-sm text-warm-gray mb-0.5">{signingStatus}</p>
+            <p className="text-[11px] text-warm-gray-light mt-4 flex items-center justify-center gap-1.5">
+              <Lock className="w-3 h-3" />
+              Keys never leave your browser
+            </p>
           </div>
         </div>
       </>
@@ -279,7 +285,7 @@ export default function SigningFlow({ intentId, token, returnUrl, onNetwork }: P
                 bg-warm-black text-white hover:bg-warm-black/90 active:scale-[0.99]
                 transition-all flex items-center justify-center gap-2"
             >
-              Looks Good — Continue
+              Continue to Sign
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>

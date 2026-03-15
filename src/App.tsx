@@ -11,7 +11,7 @@ export default function App() {
   const [network, setNetwork] = useState<string | null>(null);
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col">
+    <div className="min-h-screen flex flex-col bg-cream">
       <nav className="h-14 bg-black flex justify-between items-center px-6 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <a
