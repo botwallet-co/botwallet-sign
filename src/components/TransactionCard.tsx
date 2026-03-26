@@ -129,15 +129,24 @@ export default function TransactionCard({ details }: Props) {
           <div className="p-2.5 bg-cream rounded-lg text-xs text-warm-gray space-y-1 animate-fade-in">
             <div className="flex justify-between">
               <span>Platform fee</span>
-              <span className="font-mono">${details.fee_usdc} USDC</span>
+              <span className="font-mono">
+                ${details.fee_breakdown?.platform_fee_usdc || details.fee_usdc} USDC
+              </span>
             </div>
             <div className="flex justify-between">
               <span>Solana network fee</span>
               <span className="text-status-success">Covered by BotWallet</span>
             </div>
             <div className="flex justify-between">
-              <span>Token account setup</span>
-              <span className="text-status-success">Covered by BotWallet</span>
+              <span>Account setup</span>
+              {details.fee_breakdown && parseFloat(details.fee_breakdown.account_setup_fee_usdc) > 0 ? (
+                <span className="font-mono">
+                  ${details.fee_breakdown.account_setup_fee_usdc} USDC
+                  <span className="text-warm-gray ml-1 font-sans">(one-time)</span>
+                </span>
+              ) : (
+                <span className="text-status-success">Not needed</span>
+              )}
             </div>
           </div>
         )}

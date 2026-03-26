@@ -51,6 +51,10 @@ export class ApiError extends Error {
 export interface SigningIntentDetails {
   amount: string;
   fee_usdc: string;
+  fee_breakdown?: {
+    platform_fee_usdc: string;
+    account_setup_fee_usdc: string;
+  };
   from_address: string;
   from_name: string;
   from_owner_name?: string | null;
