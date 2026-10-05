@@ -3,7 +3,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'https://bcxqqwllnubdqiqoivqb.su
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
-  error?: { code: string; message: string };
+  error?: { code: string; message: string; [key: string]: unknown };
 }
 
 async function post<T>(action: string, data: Record<string, unknown>): Promise<T> {
@@ -26,25 +26,25 @@ async function post<T>(action: string, data: Record<string, unknown>): Promise<T
   }
 
   if (!json.success || !json.data) {
-    throw new ApiError(json.error?.code || 'UNKNOWN', json.error?.message || 'Unknown error');
+    const { code, message, ...details }: Record<string, unknown> = json.error ?? {};
+    throw new ApiError(
+      typeof code === 'string' && code ? code : 'UNKNOWN',
+      typeof message === 'string' && message ? message : 'Unknown error',
+      details,
+    );
   }
   return json.data;
 }
 
 export class ApiError extends Error {
   code: string;
-  constructor(code: string, message: string) {
+  /** The error's other fields, such as intent_status or solana_signature. */
+  details: Record<string, unknown>;
+  constructor(code: string, message: string, details: Record<string, unknown> = {}) {
     super(message);
     this.code = code;
+    this.details = details;
     this.name = 'ApiError';
-  }
-
-  get isRetryable(): boolean {
-    return ['SESSION_EXPIRED', 'TRANSACTION_FAILED', 'BALANCE_CHECK_FAILED'].includes(this.code);
-  }
-
-  get isExpired(): boolean {
-    return ['INTENT_EXPIRED', 'INTENT_COMPLETED'].includes(this.code);
   }
 }
 
@@ -57,14 +57,21 @@ export interface SigningIntentDetails {
   };
   from_address: string;
   from_name: string;
-  from_owner_name?: string | null;
   to_address: string;
   to_name: string | null;
-  to_owner_name?: string | null;
   network: string;
   action_type: string;
   fee_covered_by: string;
   expires_at: string;
+  /**
+   * What an unfinished signing attempt with this link is doing. Only newer servers send it,
+   * and only while one is under way:
+   *   submitting   the transaction was handed over for sending and may have gone through
+   *   in_progress  an attempt started moments ago and nothing was sent; it can be retried after retry_after
+   *   stale        an earlier attempt sent nothing, and the link can be signed again
+   */
+  signing_state?: 'submitting' | 'in_progress' | 'stale';
+  retry_after?: string;
 }
 
 export interface FrostInitResult {
@@ -81,6 +88,7 @@ export interface FrostInitResult {
 
 export interface FrostCompleteResult {
   solana_signature: string;
+  /** Not used for links: the page builds the explorer link from solana_signature. */
   explorer_url: string;
   transaction_id: string;
   amount_usdc: string;

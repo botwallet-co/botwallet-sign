@@ -1,21 +1,27 @@
 import { useState } from 'react';
-import { parseFragment, type SigningRequest } from './lib/fragment';
+import { loadSigningRequest, withSignedFlag, DEFAULT_RETURN_URL, type SigningRequest } from './lib/fragment';
 import SigningFlow from './components/SigningFlow';
 import InvalidSession from './components/InvalidSession';
 import { ArrowLeft } from 'lucide-react';
 
-const initialRequest = parseFragment();
+const initialRequest = loadSigningRequest();
+
+const SOURCE_URL = 'https://github.com/botwallet-co/botwallet-sign';
 
 export default function App() {
   const [request] = useState<SigningRequest | null>(initialRequest);
   const [network, setNetwork] = useState<string | null>(null);
+  const [signed, setSigned] = useState(false);
+
+  const dashboardUrl = request?.returnUrl || DEFAULT_RETURN_URL;
 
   return (
-    <div className="min-h-screen bg-cream flex flex-col">
+    <div className="min-h-screen flex flex-col bg-cream">
       <nav className="h-14 bg-black flex justify-between items-center px-6 sticky top-0 z-50">
         <div className="flex items-center gap-3">
           <a
-            href={request?.returnUrl || 'https://app.botwallet.co'}
+            href={signed ? withSignedFlag(dashboardUrl) : dashboardUrl}
+            aria-label="Back to dashboard"
             className="text-white/40 hover:text-white transition-colors"
           >
             <ArrowLeft size={16} />
@@ -49,13 +55,15 @@ export default function App() {
         </div>
       </nav>
 
-      <main className="flex-1 max-w-[480px] mx-auto w-full px-5 py-6">
+      <main className="flex-1 max-w-[480px] mx-auto w-full px-4 sm:px-5 py-6">
         {request ? (
           <SigningFlow
             intentId={request.intentId}
             token={request.token}
             returnUrl={request.returnUrl}
+            expected={request.expected}
             onNetwork={setNetwork}
+            onSigned={() => setSigned(true)}
           />
         ) : (
           <InvalidSession />
@@ -67,14 +75,22 @@ export default function App() {
           <p className="text-[11px] text-warm-gray-light">
             Your key never leaves this browser ·{' '}
             <a
-              href="https://github.com/botwallet-co/botwallet-sign"
+              href={SOURCE_URL}
               target="_blank"
               rel="noopener noreferrer"
               className="text-warm-gray hover:text-warm-black transition-colors"
             >
               Open source
             </a>
-            {' '}· Verifiable
+            {' '}·{' '}
+            <a
+              href={`${SOURCE_URL}#self-hosting`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-warm-gray hover:text-warm-black transition-colors"
+            >
+              Verifiable
+            </a>
           </p>
         </div>
       </footer>
