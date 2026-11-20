@@ -1,16 +1,24 @@
 /**
- * Empties the clipboard once pasted words are no longer needed there. Browsers allow
- * this only right after a click or paste, and some never do, so it can fail: returns
- * whether it worked. Clipboard history and clipboard sync keep their own copy anyway.
+ * Puts `text` on the clipboard. Browsers can refuse, or have no clipboard API, so it can
+ * fail: returns whether it worked.
  */
-export async function clearClipboard(): Promise<boolean> {
+export async function writeClipboard(text: string): Promise<boolean> {
   try {
     if (!navigator.clipboard?.writeText) return false;
-    await navigator.clipboard.writeText('');
+    await navigator.clipboard.writeText(text);
     return true;
   } catch {
     return false;
   }
+}
+
+/**
+ * Empties the clipboard once pasted words are no longer needed there. Browsers allow
+ * this only right after a click or paste, and some never do, so it can fail: returns
+ * whether it worked. Clipboard history and clipboard sync keep their own copy anyway.
+ */
+export function clearClipboard(): Promise<boolean> {
+  return writeClipboard('');
 }
 
 /** What to tell the owner after trying to clear pasted words (or a whole backup) from the clipboard. */

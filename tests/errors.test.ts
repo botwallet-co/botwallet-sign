@@ -1,13 +1,14 @@
 // What the owner is told after a failure must match what really happened to the money.
-// Every error code that supabase/functions/public/handlers/human-signing.ts returns is
-// listed here per phase, with the server's message where errors.ts depends on its wording.
+// Every error code that the signing-link actions return (supabase/functions/public/handlers/
+// signing-intent.ts and signing-frost.ts, with public/signing/) is listed here per phase,
+// with the server's message where errors.ts depends on its wording.
 
 import { describe, it, expect } from 'vitest';
 import { ApiError } from '../src/lib/api';
 import { describeFailure, type Failure, type SignPhase } from '../src/lib/errors';
 import { TransactionMismatchError } from '../src/lib/verify-transaction';
 
-// Server wording, copied from human-signing.ts.
+// Server wording, copied from public/signing/ and public/handlers/signing-frost.ts.
 const SERVER = {
   serviceUnavailable: "We couldn't check this link right now. Try again in a moment.",
   invalidToken: 'Invalid or expired signing session',
@@ -25,6 +26,9 @@ const SERVER = {
   attemptUsed: 'This signing attempt was already used. Check the wallet in your dashboard before trying again.',
   stillConfirming: 'This withdrawal was sent to Solana and is still being confirmed. Check your wallet in the dashboard.',
   unconfirmed: "Your withdrawal was sent to Solana but isn't confirmed yet. It may still go through, so don't send it again. Check your wallet in the dashboard in a minute.",
+  signingUnavailable: "Botwallet couldn't sign this withdrawal, so nothing was sent. Start a new withdrawal from your dashboard.",
+  notRecordedUnknown: "We couldn't save this withdrawal before sending it, so this attempt sent nothing. Check your wallet in the dashboard before trying again.",
+  notRecordedFreed: "We couldn't save this withdrawal before sending it, so nothing was sent. Try again.",
 };
 
 type Outcome = 'retry-load' | 'retry-sign' | 'not-sent' | 'went-through' | 'unknown';
@@ -93,12 +97,53 @@ const CASES: [SignPhase, string, string, Outcome][] = [
   ['complete', 'SUBMISSION_UNCONFIRMED', SERVER.unconfirmed, 'retry-load'],
   ['complete', 'INTERNAL_ERROR', 'Internal server error', 'unknown'],
   ['complete', 'SERVICE_UNAVAILABLE', SERVER.serviceUnavailable, 'unknown'],
+  ['complete', 'SERVICE_UNAVAILABLE', SERVER.notRecordedUnknown, 'unknown'],
+  ['complete', 'SERVICE_UNAVAILABLE', SERVER.notRecordedFreed, 'unknown'],
+  // The server sends this only before anything is submitted (roundFailureResponse), but
+  // errors.ts doesn't know the code, so it can't rule out that the money moved.
+  ['complete', 'SIGNING_UNAVAILABLE', SERVER.signingUnavailable, 'unknown'],
   ['complete', 'NETWORK_ERROR', '', 'unknown'],
   ['complete', 'PARSE_ERROR', '', 'unknown'],
   ['complete', 'UNKNOWN', '', 'unknown'],
 ];
 
+// The same replies as the server sends them now, with the link's status in intent_status.
+// describeFailure goes by the wording (confirmationOf reads intent_status first), so both
+// forms have to give the same answer.
+const WITH_STATUS: [SignPhase, string, string, string][] = [
+  ['load', 'INTENT_COMPLETED', SERVER.completed, 'completed'],
+  ['load', 'INTENT_COMPLETED', SERVER.failed, 'failed'],
+  ['load', 'INTENT_COMPLETED', SERVER.expiredStatus, 'expired'],
+  ['load', 'INTENT_COMPLETED', SERVER.stillConfirming, 'signing'],
+  // The link's 15 minutes ran out while Solana was confirming
+  ['load', 'INTENT_COMPLETED', SERVER.stillConfirming, 'expired'],
+  ['init', 'INTENT_COMPLETED', SERVER.beingSigned, 'signing'],
+  ['init', 'INTENT_COMPLETED', SERVER.completed, 'completed'],
+  ['init', 'INTENT_COMPLETED', SERVER.failed, 'failed'],
+  ['init', 'INTENT_COMPLETED', SERVER.stillConfirming, 'signing'],
+  ['complete', 'INTENT_COMPLETED', SERVER.completed, 'completed'],
+  ['complete', 'INTENT_COMPLETED', SERVER.pending, 'pending'],
+];
+
 describe('describeFailure', () => {
+  it.each(WITH_STATUS)('%s %s "%s" with intent_status %s says the same as without it', (phase, code, message, intentStatus) => {
+    const withStatus = describeFailure(new ApiError(code, message, { intent_status: intentStatus }), phase, 'withdrawal');
+    expect(withStatus).toEqual(describeFailure(new ApiError(code, message), phase, 'withdrawal'));
+    // Each of them is in CASES too, where its outcome is pinned
+    expect(CASES.some(([p, c, m]) => p === phase && c === code && m === message)).toBe(true);
+  });
+
+  it('goes by the wording when intent_status says something else', () => {
+    // No reply does this today. Trusting the field here would say nothing was sent where
+    // the wording says the link was used, or that it went through where it is unclear.
+    const inProgress = new ApiError('INTENT_COMPLETED', SERVER.inProgress, { intent_status: 'failed' });
+    expect(outcome(describeFailure(inProgress, 'init', 'withdrawal'))).toBe('unknown');
+    const completed = new ApiError('INTENT_COMPLETED', SERVER.completed, { intent_status: 'failed' });
+    expect(outcome(describeFailure(completed, 'init', 'withdrawal'))).toBe('went-through');
+    const pending = new ApiError('INTENT_COMPLETED', SERVER.pending, { intent_status: 'completed' });
+    expect(outcome(describeFailure(pending, 'complete', 'withdrawal'))).toBe('unknown');
+  });
+
   it.each(CASES)('%s %s "%s" → %s', (phase, code, message, expected) => {
     const failure = describeFailure(new ApiError(code, message), phase, 'withdrawal');
     expect(outcome(failure)).toBe(expected);

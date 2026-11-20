@@ -35,6 +35,7 @@ import {
   parseLegacyMessage, associatedTokenAddress, bytesEqual, readU64LE, usdcMintFor,
   TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID, SYSTEM_PROGRAM_ID, type LegacyMessage,
 } from './solana';
+import { usdcToCents, BASE_UNITS_PER_CENT } from './usdc';
 
 /** The transaction or the details don't match what the owner approved. `message` says why, for debugging. */
 export class TransactionMismatchError extends Error {
@@ -66,16 +67,6 @@ export interface TransferExpectation {
   /** The largest fee transfer. */
   maxFee: bigint;
 }
-
-/** "12.34" → 1234n. The server sends amounts with two decimals. */
-export function usdcToCents(text: string): bigint | null {
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(text);
-  if (!match) return null;
-  return BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'));
-}
-
-// USDC has 6 decimals, so one cent is 10,000 base units.
-const BASE_UNITS_PER_CENT = 10_000n;
 
 /** Checks the details from Botwallet against what the owner entered in the dashboard. */
 export function verifyIntentMatchesRequest(details: SigningIntentDetails, expected?: ExpectedTransfer): void {

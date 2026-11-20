@@ -2,7 +2,7 @@
 
 Browser-based FROST threshold signing portal for [Botwallet](https://botwallet.co). Authorizes withdrawals and transfers initiated from the Botwallet dashboard using Key 1, the 12 words your agent keeps.
 
-**Your private key never leaves the browser.** This app performs client-side FROST partial signature computation and communicates only the partial signature to the server. The full signing key is never reconstructed.
+**Your private key never leaves the browser.** This app computes the FROST partial signature in the browser and sends the server only a nonce commitment, Key 1's public share (so wrong words are caught before anything is signed) and the partial signature. The full signing key is never reconstructed.
 
 **Live:** [sign.botwallet.co](https://sign.botwallet.co)
 
@@ -12,7 +12,7 @@ Browser-based FROST threshold signing portal for [Botwallet](https://botwallet.c
 2. The dashboard creates a signing intent on the server and redirects you here with a one-time token.
 3. You review the transaction details (amount, from, to, fees).
 4. You enter Key 1 (the 12 words your agent keeps) — this is processed **entirely in your browser**.
-5. The app computes a FROST nonce commitment, checks that the transaction the server prepared matches what you reviewed, then computes the partial signature and sends only those to the server.
+5. The app sends the server a FROST nonce commitment and Key 1's public share, checks that the transaction the server prepared matches what you reviewed, then computes the partial signature and sends it to the server.
 6. The server computes its own partial signature using Key 2, aggregates both, and submits the transaction to Solana.
 
 At no point does the full private key exist in any single location.
@@ -28,7 +28,9 @@ npm install
 npm run dev
 ```
 
-The dashboard has a hidden option to specify a custom signing portal URL if you're self-hosting.
+The dev server runs on `http://localhost:5175`, and doesn't start if that port is taken.
+
+To use your own copy, turn on **Use your own copy of the signing site (advanced)** under Settings → Signing site in the dashboard.
 
 "Return to Dashboard" goes back only to `https://app.botwallet.co`. The dev server (`npm run dev`) also accepts a dashboard running locally on `http://localhost:5173` or `http://localhost:5174`; production builds don't, so test a local dashboard against a local copy of this page.
 
@@ -55,7 +57,7 @@ Runs everything in `tests/`, including the transaction checks and the FROST test
 - **Memory zeroing.** `Uint8Array` copies of key material (scalar, nonce, entropy) are zeroed right after use. The 12 words and BigInt intermediates are JavaScript values that cannot be wiped, so they stay in this tab's memory until garbage collection. Close the tab after signing.
 - **Single-use tokens.** Each signing session uses a cryptographically random token that expires in 15 minutes and can complete only one transaction. If a signing round times out before anything is submitted, the same link can be used to try again until it expires.
 - **No inline scripts.** CSP policy is `script-src 'self'` — no third-party scripts, no inline execution.
-- **Open source.** Inspect every line of code. The FROST signing logic is in `src/lib/frost.ts` and `src/lib/mnemonic.ts`.
+- **Open source.** Inspect every line of code. The signing steps, in order, are in `src/lib/sign.ts`, the FROST math in `src/lib/frost.ts`, and turning Key 1's words into its key share in `src/lib/mnemonic.ts`.
 
 ## Tech stack
 

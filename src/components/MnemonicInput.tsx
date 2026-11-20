@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import {
-  isValidMnemonic, splitWords, isKnownWord, isPrefixOfLongerWord, completeWord, suggestWords,
+  checkWords, splitWords, isKnownWord, isPrefixOfLongerWord, completeWord, suggestWords,
   wordCountProblem, KEY1_WORD_COUNT,
-} from '../lib/mnemonic';
+} from '../lib/key1-words';
 import { clearClipboard, clipboardMessage } from '../lib/clipboard';
 import { AlertCircle, ClipboardPaste, Check, RotateCcw, Eye, EyeOff } from 'lucide-react';
 
@@ -12,26 +12,8 @@ interface Props {
   disabled?: boolean;
 }
 
-const WORD_COUNT = KEY1_WORD_COUNT;
-
 /** Where several words at once came from: the paste button, a paste into a box, or a phone keyboard. */
 type Source = 'button' | 'paste' | 'typing';
-
-type WordCheck =
-  | { ok: true; mnemonic: string }
-  | { ok: false; bad: number[]; message?: string };
-
-/** Returns null until all 12 words are filled in. Words that aren't in the word list come back in `bad`. */
-function checkWords(words: string[]): WordCheck | null {
-  if (words.some(w => !w)) return null;
-  const bad = words.flatMap((w, i) => (isKnownWord(w) ? [] : [i]));
-  if (bad.length > 0) return { ok: false, bad };
-  const mnemonic = words.join(' ');
-  if (!isValidMnemonic(mnemonic)) {
-    return { ok: false, bad: [], message: "These 12 words aren't a valid Key 1. Check each word and the order." };
-  }
-  return { ok: true, mnemonic };
-}
 
 /**
  * Says which words aren't in the word list, with likely corrections. Corrections appear
@@ -94,7 +76,7 @@ function WordHints({ bad, words, showWords, onShowWords, onPick }: {
 }
 
 export default function MnemonicInput({ onValid, onReset, disabled }: Props) {
-  const [words, setWords] = useState<string[]>(() => Array(WORD_COUNT).fill(''));
+  const [words, setWords] = useState<string[]>(() => Array(KEY1_WORD_COUNT).fill(''));
   const [error, setError] = useState<string | null>(null);
   const [badWords, setBadWords] = useState<number[]>([]);
   const [clipboardNote, setClipboardNote] = useState<string | null>(null);
@@ -104,10 +86,9 @@ export default function MnemonicInput({ onValid, onReset, disabled }: Props) {
   // Latest words, for blur and key handlers that can fire before React re-renders.
   const wordsRef = useRef(words);
 
+  // The boxes always start empty, so start in the first one.
   useEffect(() => {
-    if (!accepted) {
-      inputRefs.current[0]?.focus();
-    }
+    inputRefs.current[0]?.focus();
   }, []);
 
   const updateWords = (next: string[]) => {
@@ -127,7 +108,7 @@ export default function MnemonicInput({ onValid, onReset, disabled }: Props) {
       onValid(result.mnemonic);
       // The parent keeps the accepted words; drop this copy. Strings can't be wiped, so this
       // only removes a reference. "Change" starts over with empty fields anyway.
-      updateWords(Array(WORD_COUNT).fill(''));
+      updateWords(Array(KEY1_WORD_COUNT).fill(''));
     } else {
       setError(result.message ?? null);
       setBadWords(result.bad);
@@ -178,11 +159,11 @@ export default function MnemonicInput({ onValid, onReset, disabled }: Props) {
     const problem = wordCountProblem(entered.length, source === 'button');
     if (problem) {
       setError(problem);
-      if (pasted && entered.length === WORD_COUNT * 2) clearPastedWords(true);
+      if (pasted && entered.length === KEY1_WORD_COUNT * 2) clearPastedWords(true);
       return true;
     }
 
-    if (entered.length === WORD_COUNT) {
+    if (entered.length === KEY1_WORD_COUNT) {
       updateWords(entered);
       commit(entered);
       if (pasted) clearPastedWords(false);
@@ -194,7 +175,7 @@ export default function MnemonicInput({ onValid, onReset, disabled }: Props) {
     // A few words: spread them over this field and the ones after it, flagging any
     // that aren't in the word list.
     const next = [...wordsRef.current];
-    const placed = entered.slice(0, WORD_COUNT - index);
+    const placed = entered.slice(0, KEY1_WORD_COUNT - index);
     placed.forEach((w, k) => { next[index + k] = w; });
     updateWords(next);
     setError(null);
@@ -204,7 +185,7 @@ export default function MnemonicInput({ onValid, onReset, disabled }: Props) {
     ]);
     commit(next);
     if (pasted) clearPastedWords(false);
-    inputRefs.current[Math.min(index + entered.length, WORD_COUNT - 1)]?.focus();
+    inputRefs.current[Math.min(index + entered.length, KEY1_WORD_COUNT - 1)]?.focus();
     return true;
   };
 
@@ -233,7 +214,7 @@ export default function MnemonicInput({ onValid, onReset, disabled }: Props) {
     const result = checkWords(next);
     if (result?.ok && (finished || !isPrefixOfLongerWord(word))) {
       commit(next);
-    } else if (finished && index < WORD_COUNT - 1) {
+    } else if (finished && index < KEY1_WORD_COUNT - 1) {
       inputRefs.current[index + 1]?.focus();
     } else if (finished) {
       commit(next);
@@ -244,7 +225,7 @@ export default function MnemonicInput({ onValid, onReset, disabled }: Props) {
     if (e.key === ' ' || e.key === ',') {
       e.preventDefault();
       const next = finishWord(index);
-      if (index < WORD_COUNT - 1) inputRefs.current[index + 1]?.focus();
+      if (index < KEY1_WORD_COUNT - 1) inputRefs.current[index + 1]?.focus();
       else commit(next);
     } else if (e.key === 'Enter') {
       e.preventDefault();
@@ -280,7 +261,7 @@ export default function MnemonicInput({ onValid, onReset, disabled }: Props) {
 
   const handleReset = () => {
     setAccepted(false);
-    updateWords(Array(WORD_COUNT).fill(''));
+    updateWords(Array(KEY1_WORD_COUNT).fill(''));
     setError(null);
     setBadWords([]);
     setClipboardNote(null);

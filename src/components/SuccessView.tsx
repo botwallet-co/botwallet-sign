@@ -1,20 +1,18 @@
 import { ExternalLink, ArrowLeft, Copy, Check } from 'lucide-react';
 import { useState, useEffect, useId } from 'react';
-import type { FrostCompleteResult, SigningIntentDetails } from '../lib/api';
-import { shortenAddress, transactionExplorerUrl } from '../lib/format';
-import { withSignedFlag, DEFAULT_RETURN_URL } from '../lib/fragment';
-
-/**
- * What the receipt shows. After a transfer that was confirmed while the page waited for
- * Solana, there is no new balance to show, and no signature if the server didn't send one.
- */
-export type Receipt = Pick<FrostCompleteResult, 'solana_signature' | 'amount_usdc' | 'fee_usdc'> &
-  Partial<Pick<FrostCompleteResult, 'new_balance_usdc'>>;
+import type { SigningIntentDetails } from '../lib/api';
+import { kindTitle, type ActionKind } from '../lib/action';
+import { shortenMiddle, transactionExplorerUrl } from '../lib/format';
+import type { Receipt } from '../lib/receipt';
+import { usdcToCents } from '../lib/usdc';
+import { useCopy } from '../hooks/useCopy';
+import { Card, DashboardLink, StageHeading } from './ui';
 
 interface Props {
-  result: Receipt;
+  receipt: Receipt;
   details: SigningIntentDetails;
-  returnUrl?: string;
+  kind: ActionKind;
+  dashboardUrl: string;
 }
 
 function AnimatedCheckmark() {
@@ -44,8 +42,8 @@ function AnimatedCheckmark() {
   );
 }
 
-export default function SuccessView({ result, details, returnUrl }: Props) {
-  const [copied, setCopied] = useState(false);
+export default function SuccessView({ receipt, details, kind, dashboardUrl }: Props) {
+  const { copied, copy } = useCopy();
   const [showReceipt, setShowReceipt] = useState(false);
   const summaryId = useId();
 
@@ -54,32 +52,24 @@ export default function SuccessView({ result, details, returnUrl }: Props) {
     return () => clearTimeout(timer);
   }, []);
 
-  const copySignature = async () => {
-    await navigator.clipboard.writeText(result.solana_signature);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const isTransfer = details.action_type === 'transfer';
-  const explorerUrl = transactionExplorerUrl(result.solana_signature, details.network);
+  const { signature } = receipt;
+  const explorerUrl = signature ? transactionExplorerUrl(signature, details.network) : null;
 
   return (
     <div className="animate-fade-in">
-      <div className="bg-white rounded-[20px] border border-cream-dark p-7 shadow-sm text-center">
+      <Card className="p-7 text-center">
         <div className="flex items-center justify-center mb-5 mt-2">
           <AnimatedCheckmark />
         </div>
 
-        <h1
-          tabIndex={-1}
-          data-stage-heading
+        <StageHeading
           aria-describedby={summaryId}
-          className="text-[22px] font-semibold text-warm-black mb-1 success-text-reveal outline-none"
+          className="text-[22px] font-semibold text-warm-black mb-1 success-text-reveal"
         >
           Transaction Complete
-        </h1>
+        </StageHeading>
         <p id={summaryId} className="text-sm text-warm-gray success-text-reveal-delayed">
-          {isTransfer ? 'Transfer' : 'Withdrawal'} of <span className="font-mono font-semibold text-warm-black">${result.amount_usdc}</span> USDC sent successfully.
+          {kindTitle(kind)} of <span className="font-mono font-semibold text-warm-black">${receipt.amountUsdc}</span> USDC sent successfully.
         </p>
 
         <div className={`text-left space-y-2.5 pt-5 mt-5 border-t border-cream-dark transition-all duration-500 ${
@@ -87,26 +77,26 @@ export default function SuccessView({ result, details, returnUrl }: Props) {
         }`}>
           <div className="flex items-center justify-between text-sm">
             <span className="text-warm-gray">Amount</span>
-            <span className="font-semibold text-warm-black">${result.amount_usdc} USDC</span>
+            <span className="font-semibold text-warm-black">${receipt.amountUsdc} USDC</span>
           </div>
-          {parseFloat(result.fee_usdc) > 0 && (
+          {(usdcToCents(receipt.feeUsdc) ?? 0n) > 0n && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-warm-gray">Fee</span>
-              <span className="text-warm-black">${result.fee_usdc} USDC</span>
+              <span className="text-warm-black">${receipt.feeUsdc} USDC</span>
             </div>
           )}
           <div className="flex items-center justify-between text-sm">
             <span className="text-warm-gray">To</span>
-            <span className="font-mono text-warm-black">{shortenAddress(details.to_address, 6)}</span>
+            <span className="font-mono text-warm-black">{shortenMiddle(details.to_address, 6)}</span>
           </div>
-          {result.new_balance_usdc && (
+          {receipt.newBalanceUsdc && (
             <div className="flex items-center justify-between text-sm">
               <span className="text-warm-gray">New Balance</span>
-              <span className="font-semibold text-warm-black">${result.new_balance_usdc} USDC</span>
+              <span className="font-semibold text-warm-black">${receipt.newBalanceUsdc} USDC</span>
             </div>
           )}
 
-          {result.solana_signature && (
+          {signature !== null && (
             <div className="pt-3 border-t border-cream-dark">
               <div className="flex items-center justify-between">
                 {explorerUrl && (
@@ -121,29 +111,29 @@ export default function SuccessView({ result, details, returnUrl }: Props) {
                   </a>
                 )}
                 <button
-                  onClick={copySignature}
+                  onClick={() => copy(signature)}
                   className="ml-auto flex items-center gap-1.5 text-xs text-warm-gray-light hover:text-warm-black transition-colors font-mono"
                 >
-                  {shortenAddress(result.solana_signature, 8)}
+                  {shortenMiddle(signature, 8)}
                   {copied ? <Check className="w-3 h-3 text-status-success" /> : <Copy className="w-3 h-3" />}
                 </button>
               </div>
             </div>
           )}
         </div>
-      </div>
+      </Card>
 
-      <a
-        href={withSignedFlag(returnUrl || DEFAULT_RETURN_URL)}
-        className={`w-full mt-4 py-3.5 px-4 rounded-[14px] font-semibold text-sm text-center
-          bg-warm-black text-white hover:bg-warm-black/90 transition-all active:scale-[0.99]
-          flex items-center justify-center gap-2 duration-500 ${
+      <DashboardLink
+        href={dashboardUrl}
+        signed
+        variant="primary"
+        className={`w-full mt-4 px-4 text-center transition-all duration-500 ${
           showReceipt ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
         }`}
       >
         <ArrowLeft className="w-4 h-4" />
         Return to Dashboard
-      </a>
+      </DashboardLink>
     </div>
   );
 }

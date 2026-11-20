@@ -1,31 +1,31 @@
 import { useState } from 'react';
-import { loadSigningRequest, withSignedFlag, DEFAULT_RETURN_URL, type SigningRequest } from './lib/fragment';
+import { DEFAULT_RETURN_URL, type SigningRequest } from './lib/signing-request';
 import SigningFlow from './components/SigningFlow';
 import InvalidSession from './components/InvalidSession';
+import { DashboardLink } from './components/ui';
 import { ArrowLeft } from 'lucide-react';
-
-const initialRequest = loadSigningRequest();
 
 const SOURCE_URL = 'https://github.com/botwallet-co/botwallet-sign';
 
-export default function App() {
-  const [request] = useState<SigningRequest | null>(initialRequest);
+/** `request` is the signing link, read by main.tsx before the first render; null without one. */
+export default function App({ request }: { request: SigningRequest | null }) {
   const [network, setNetwork] = useState<string | null>(null);
   const [signed, setSigned] = useState(false);
 
-  const dashboardUrl = request?.returnUrl || DEFAULT_RETURN_URL;
+  const dashboardUrl = request?.returnUrl ?? DEFAULT_RETURN_URL;
 
   return (
     <div className="min-h-screen flex flex-col bg-cream">
       <nav className="h-14 bg-black flex justify-between items-center px-6 sticky top-0 z-50">
         <div className="flex items-center gap-3">
-          <a
-            href={signed ? withSignedFlag(dashboardUrl) : dashboardUrl}
+          <DashboardLink
+            href={dashboardUrl}
+            signed={signed}
             aria-label="Back to dashboard"
             className="text-white/40 hover:text-white transition-colors"
           >
             <ArrowLeft size={16} />
-          </a>
+          </DashboardLink>
           <div className="flex items-baseline gap-1.5">
             <span className="font-black text-xs tracking-[0.15em] text-white">
               BOTWALLET
@@ -60,7 +60,7 @@ export default function App() {
           <SigningFlow
             intentId={request.intentId}
             token={request.token}
-            returnUrl={request.returnUrl}
+            dashboardUrl={dashboardUrl}
             expected={request.expected}
             onNetwork={setNetwork}
             onSigned={() => setSigned(true)}

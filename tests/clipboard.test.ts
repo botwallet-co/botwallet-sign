@@ -2,10 +2,27 @@
 // say it worked when it did.
 
 import { afterEach, describe, it, expect, vi } from 'vitest';
-import { clearClipboard, clipboardMessage } from '../src/lib/clipboard';
+import { clearClipboard, clipboardMessage, writeClipboard } from '../src/lib/clipboard';
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+describe('writeClipboard', () => {
+  it('copies the text and reports success', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { clipboard: { writeText } });
+    expect(await writeClipboard('5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW')).toBe(true);
+    expect(writeText).toHaveBeenCalledWith('5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW');
+  });
+
+  // The receipt's copy buttons (useCopy) rely on this: a refusal must not reject.
+  it('reports a refused or missing clipboard instead of rejecting', async () => {
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockRejectedValue(new Error('NotAllowedError')) } });
+    await expect(writeClipboard('text')).resolves.toBe(false);
+    vi.stubGlobal('navigator', {});
+    await expect(writeClipboard('text')).resolves.toBe(false);
+  });
 });
 
 describe('clearClipboard', () => {

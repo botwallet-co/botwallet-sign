@@ -1,5 +1,17 @@
 const API_URL = import.meta.env.VITE_API_URL || 'https://bcxqqwllnubdqiqoivqb.supabase.co/functions/v1';
 
+export class ApiError extends Error {
+  code: string;
+  /** The error's other fields, such as intent_status or solana_signature. */
+  details: Record<string, unknown>;
+  constructor(code: string, message: string, details: Record<string, unknown> = {}) {
+    super(message);
+    this.code = code;
+    this.details = details;
+    this.name = 'ApiError';
+  }
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
@@ -14,7 +26,7 @@ async function post<T>(action: string, data: Record<string, unknown>): Promise<T
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action, data }),
     });
-  } catch (e) {
+  } catch {
     throw new ApiError('NETWORK_ERROR', 'Unable to reach the server. Check your internet connection and try again.');
   }
 
@@ -36,17 +48,7 @@ async function post<T>(action: string, data: Record<string, unknown>): Promise<T
   return json.data;
 }
 
-export class ApiError extends Error {
-  code: string;
-  /** The error's other fields, such as intent_status or solana_signature. */
-  details: Record<string, unknown>;
-  constructor(code: string, message: string, details: Record<string, unknown> = {}) {
-    super(message);
-    this.code = code;
-    this.details = details;
-    this.name = 'ApiError';
-  }
-}
+// The fields of each reply that this page reads. The server sends more.
 
 export interface SigningIntentDetails {
   amount: string;
@@ -60,8 +62,8 @@ export interface SigningIntentDetails {
   to_address: string;
   to_name: string | null;
   network: string;
-  action_type: string;
-  fee_covered_by: string;
+  /** create_signing_intent accepts only these two. */
+  action_type: 'withdraw' | 'transfer';
   expires_at: string;
   /**
    * What an unfinished signing attempt with this link is doing. Only newer servers send it,
@@ -79,18 +81,10 @@ export interface FrostInitResult {
   server_nonce_commitment: string;
   group_key: string;
   message_to_sign: string;
-  fee_details: {
-    platform_fee_usdc: string;
-    network_fees: string;
-    ata_creation: string;
-  };
 }
 
 export interface FrostCompleteResult {
   solana_signature: string;
-  /** Not used for links: the page builds the explorer link from solana_signature. */
-  explorer_url: string;
-  transaction_id: string;
   amount_usdc: string;
   fee_usdc: string;
   new_balance_usdc: string;
@@ -100,11 +94,12 @@ export async function getSigningIntent(intentId: string, token: string): Promise
   return post<SigningIntentDetails>('get_signing_intent', { intent_id: intentId, signing_token: token });
 }
 
+/** `agentPublicShare` is Key 1's public share, which lets the server tell wrong words apart before signing. */
 export async function signingFrostInit(
   intentId: string,
   token: string,
   nonceCommitment: string,
-  agentPublicShare?: string,
+  agentPublicShare: string,
 ): Promise<FrostInitResult> {
   return post<FrostInitResult>('signing_frost_init', {
     intent_id: intentId,

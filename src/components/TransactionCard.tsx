@@ -1,26 +1,21 @@
 import { ArrowDown, ChevronDown, ChevronUp, Copy, Check } from 'lucide-react';
 import { useState } from 'react';
-import { shortenAddress, groupAddress, summarizeFees } from '../lib/format';
+import { shortenMiddle, groupAddress, summarizeFees } from '../lib/format';
 import type { SigningIntentDetails } from '../lib/api';
+import type { ActionKind } from '../lib/action';
+import { useCopy } from '../hooks/useCopy';
 
 interface Props {
   details: SigningIntentDetails;
+  kind: ActionKind;
 }
 
 function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch { /* clipboard unavailable */ }
-  };
+  const { copied, copy } = useCopy();
 
   return (
     <button
-      onClick={copy}
+      onClick={() => copy(text)}
       className="p-1 rounded-md text-warm-gray-light hover:text-warm-black hover:bg-cream transition-colors shrink-0"
       title="Copy address"
       aria-label={copied ? 'Address copied' : 'Copy address'}
@@ -49,7 +44,7 @@ function AddressRow({ label, name, address, showFull = false }: {
           <div className="font-medium text-warm-black text-sm min-w-0 break-words">{name}</div>
           {!showFull && (
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-xs text-warm-gray font-mono">{shortenAddress(address, 4)}</span>
+              <span className="text-xs text-warm-gray font-mono">{shortenMiddle(address, 4)}</span>
               <button
                 onClick={() => setExpanded(!expanded)}
                 aria-expanded={expanded}
@@ -97,16 +92,16 @@ function AmountRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function TransactionCard({ details }: Props) {
+export default function TransactionCard({ details, kind }: Props) {
   const fees = summarizeFees(details);
-  const isTransfer = details.action_type === 'transfer';
+  const isTransfer = kind === 'transfer';
 
   return (
     <div>
       {/* Amount — hero */}
       <div className="text-center py-6 bg-cream rounded-[16px] mb-5">
         <span className="text-[40px] font-semibold text-warm-black font-mono leading-none">
-          ${details.amount}
+          ${fees.amount}
         </span>
         <span className="text-lg text-warm-gray ml-2">USDC</span>
       </div>

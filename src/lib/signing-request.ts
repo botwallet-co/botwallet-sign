@@ -1,9 +1,14 @@
+// The signing link: what the dashboard puts after the # (its shape is signing-link.ts),
+// read and checked here. Keeping it in this tab is tab-session.ts.
+
 import type { ExpectedTransfer } from './verify-transaction';
+import type { SigningLinkPayload } from './signing-link';
 
 export interface SigningRequest {
   intentId: string;
   token: string;
-  returnUrl?: string;
+  /** Where "Return to Dashboard" goes: the link's return URL if its origin is allowed, else the dashboard. */
+  returnUrl: string;
   /** The amount and recipient entered in the dashboard, checked against the server's details. */
   expected?: ExpectedTransfer;
 }
@@ -15,10 +20,6 @@ const SAFE_RETURN_ORIGINS = ['https://app.botwallet.co'];
 // A dashboard running locally can send people back to itself only from a dev build of this
 // page (npm run dev). Production builds leave these out.
 const DEV_RETURN_ORIGINS = ['http://localhost:5173', 'http://localhost:5174'];
-
-// sessionStorage is per tab and is cleared when the tab closes.
-const STORAGE_KEY = 'botwallet-signing-session';
-const SUBMIT_KEY = 'botwallet-signing-submitted';
 
 function sanitizeReturnUrl(url: unknown): string | undefined {
   if (typeof url !== 'string') return undefined;
@@ -35,7 +36,7 @@ function sanitizeReturnUrl(url: unknown): string | undefined {
 // Links from older dashboards don't carry `expected`; then only the review screen is checked.
 function toExpected(json: unknown): ExpectedTransfer | undefined {
   if (!json || typeof json !== 'object') return undefined;
-  const { amountCents, toAddress } = json as Record<string, unknown>;
+  const { amountCents, toAddress } = json as Partial<Record<keyof SigningLinkPayload['expected'], unknown>>;
   const expected: ExpectedTransfer = {};
   if (typeof amountCents === 'number' && Number.isSafeInteger(amountCents) && amountCents > 0) {
     expected.amountCents = amountCents;
@@ -46,84 +47,23 @@ function toExpected(json: unknown): ExpectedTransfer | undefined {
 
 export function toSigningRequest(json: unknown): SigningRequest | null {
   if (!json || typeof json !== 'object') return null;
-  const { intentId, token, returnUrl, expected } = json as Record<string, unknown>;
+  const { intentId, token, returnUrl, expected } = json as Partial<Record<keyof SigningLinkPayload, unknown>>;
   if (typeof intentId !== 'string' || !intentId || typeof token !== 'string' || !token) return null;
-  return { intentId, token, returnUrl: sanitizeReturnUrl(returnUrl), expected: toExpected(expected) };
+  return {
+    intentId,
+    token,
+    returnUrl: sanitizeReturnUrl(returnUrl) ?? DEFAULT_RETURN_URL,
+    expected: toExpected(expected),
+  };
 }
 
-function parseFragment(hash: string): SigningRequest | null {
+/** The request in a link's # part (without the #): base64 JSON, possibly URI-encoded. Null if it isn't one. */
+export function parseFragment(hash: string): SigningRequest | null {
   try {
     return toSigningRequest(JSON.parse(atob(decodeURIComponent(hash))));
   } catch {
     return null;
   }
-}
-
-function saveSession(request: SigningRequest): void {
-  try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(request));
-  } catch { /* storage unavailable */ }
-}
-
-function restoreSession(): SigningRequest | null {
-  try {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
-    return stored ? toSigningRequest(JSON.parse(stored)) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function clearStoredSession(): void {
-  try {
-    sessionStorage.removeItem(STORAGE_KEY);
-    sessionStorage.removeItem(SUBMIT_KEY);
-  } catch { /* storage unavailable */ }
-}
-
-/**
- * Kept while the signed transaction is on its way to Botwallet, so that after a reload the
- * page warns the owner it may have gone through instead of showing a fresh review.
- */
-export function markSubmitting(intentId: string): void {
-  try {
-    sessionStorage.setItem(SUBMIT_KEY, intentId);
-  } catch { /* storage unavailable */ }
-}
-
-export function clearSubmitting(): void {
-  try {
-    sessionStorage.removeItem(SUBMIT_KEY);
-  } catch { /* storage unavailable */ }
-}
-
-export function wasSubmitting(intentId: string): boolean {
-  try {
-    return sessionStorage.getItem(SUBMIT_KEY) === intentId;
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Reads the signing session from the URL fragment, or from this tab's
- * sessionStorage when the page is reloaded without one. The fragment is
- * removed from the address bar as soon as it is read.
- */
-export function loadSigningRequest(): SigningRequest | null {
-  const hash = window.location.hash.slice(1);
-  if (!hash) return restoreSession();
-
-  clearFragment();
-
-  const request = parseFragment(hash);
-  if (request) saveSession(request);
-  else clearStoredSession();
-  return request;
-}
-
-export function clearFragment(): void {
-  history.replaceState(null, '', window.location.pathname + window.location.search);
 }
 
 /**

@@ -1,4 +1,5 @@
 import { ApiError } from './api';
+import { intentStatusOf, isStillConfirming } from './server-replies';
 
 /**
  * signing_frost_complete answers SUBMISSION_UNCONFIRMED when it sent the transaction to
@@ -40,12 +41,10 @@ export function confirmationOf(error: unknown): Confirmation {
 
   switch (error.code) {
     case 'INTENT_COMPLETED': {
-      const status = typeof error.details.intent_status === 'string'
-        ? error.details.intent_status
-        : /already (completed|failed)\b/i.exec(error.message)?.[1]?.toLowerCase();
+      const status = intentStatusOf(error);
       if (status === 'completed') return 'completed';
       if (status === 'failed') return 'failed';
-      if (/still being confirmed/i.test(error.message) || status === 'signing') return 'confirming';
+      if (isStillConfirming(error) || status === 'signing') return 'confirming';
       return 'unknown';
     }
     case 'INTENT_EXPIRED':

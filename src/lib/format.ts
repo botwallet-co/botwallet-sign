@@ -1,11 +1,7 @@
 import { base58Decode } from './base58';
-import { usdcToCents } from './verify-transaction';
+import { isMainnet } from './solana';
+import { usdcToCents, centsToUsdc } from './usdc';
 import type { SigningIntentDetails } from './api';
-
-/** 1234n → "12.34" */
-export function centsToUsdc(cents: bigint): string {
-  return `${cents / 100n}.${(cents % 100n).toString().padStart(2, '0')}`;
-}
 
 /** The money rows of the review, with the same names as the dashboard's review step. */
 export interface FeeSummary {
@@ -43,21 +39,15 @@ export function summarizeFees(
   };
 }
 
-export function shortenAddress(address: string, chars = 4): string {
-  if (address.length <= chars * 2 + 3) return address;
-  return `${address.slice(0, chars)}...${address.slice(-chars)}`;
+/** Keeps the first and last `chars` characters of an address or signature: "9WzD...AWWM". */
+export function shortenMiddle(text: string, chars = 4): string {
+  if (text.length <= chars * 2 + 3) return text;
+  return `${text.slice(0, chars)}...${text.slice(-chars)}`;
 }
 
 /** "9WzDXkYb..." → "9WzD XkYb ...", so the whole address is easy to compare. */
 export function groupAddress(address: string): string {
   return (address.match(/.{1,4}/g) || []).join(' ');
-}
-
-export function getExplorerUrl(signature: string, network: string): string {
-  const isMainnet = network === 'mainnet-beta' || network === 'mainnet';
-  return isMainnet
-    ? `https://solscan.io/tx/${signature}`
-    : `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
 }
 
 /**
@@ -71,5 +61,7 @@ export function transactionExplorerUrl(signature: string, network: string): stri
   } catch {
     return null;
   }
-  return getExplorerUrl(signature, network);
+  return isMainnet(network)
+    ? `https://solscan.io/tx/${signature}`
+    : `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
 }

@@ -20,18 +20,6 @@ export function base58Decode(text: string): Uint8Array {
   return Uint8Array.from(bytes.reverse());
 }
 
-export function base58Encode(bytes: Uint8Array): string {
-  let value = 0n;
-  for (const b of bytes) value = value * 256n + BigInt(b);
-  let text = '';
-  while (value > 0n) {
-    text = ALPHABET[Number(value % 58n)] + text;
-    value /= 58n;
-  }
-  for (let i = 0; i < bytes.length && bytes[i] === 0; i++) text = '1' + text;
-  return text;
-}
-
 /** Decodes a Solana address, or returns null when it isn't a 32-byte base58 key. */
 export function decodeAddress(address: string): Uint8Array | null {
   try {

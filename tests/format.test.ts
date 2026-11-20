@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { base58Encode } from '../src/lib/base58';
-import { transactionExplorerUrl, summarizeFees, centsToUsdc } from '../src/lib/format';
+import { transactionExplorerUrl, summarizeFees, shortenMiddle } from '../src/lib/format';
+import { base58Encode } from './helpers';
 
 function signatureOf(bytes: number[]): string {
   return base58Encode(Uint8Array.from(bytes));
@@ -11,6 +11,7 @@ const SIGNATURE = signatureOf(Array.from({ length: 64 }, (_, i) => (i * 37 + 11)
 describe('transactionExplorerUrl', () => {
   it('links mainnet transactions to Solscan and the rest to the devnet explorer', () => {
     expect(transactionExplorerUrl(SIGNATURE, 'mainnet-beta')).toBe(`https://solscan.io/tx/${SIGNATURE}`);
+    expect(transactionExplorerUrl(SIGNATURE, 'mainnet')).toBe(`https://solscan.io/tx/${SIGNATURE}`);
     expect(transactionExplorerUrl(SIGNATURE, 'devnet'))
       .toBe(`https://explorer.solana.com/tx/${SIGNATURE}?cluster=devnet`);
   });
@@ -76,10 +77,16 @@ describe('summarizeFees', () => {
     expect(summarizeFees({ amount: 'abc', fee_usdc: '1.00' }).total).toBeNull();
     expect(summarizeFees({ amount: '1.00', fee_usdc: '-1.00' }).total).toBeNull();
   });
+});
 
-  it('formats cents', () => {
-    expect(centsToUsdc(0n)).toBe('0.00');
-    expect(centsToUsdc(5n)).toBe('0.05');
-    expect(centsToUsdc(1234n)).toBe('12.34');
+describe('shortenMiddle', () => {
+  it('keeps the start and the end', () => {
+    expect(shortenMiddle('9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM')).toBe('9WzD...AWWM');
+    expect(shortenMiddle('9WzDXwBbmkg8ZTbNMqUxvQRAyrZzDsGYdLVL9zYtAWWM', 6)).toBe('9WzDXw...YtAWWM');
+  });
+
+  it('leaves text that is short already', () => {
+    expect(shortenMiddle('abcdefghijk')).toBe('abcdefghijk');
+    expect(shortenMiddle('')).toBe('');
   });
 });

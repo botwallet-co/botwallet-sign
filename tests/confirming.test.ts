@@ -1,6 +1,6 @@
 // A transfer that was sent to Solana but not confirmed when Botwallet replied may still go
 // through: the page must say it was sent, never offer to sign it again, and report how it
-// ended once the server knows. Server wording is copied from human-signing.ts.
+// ended once the server knows. Server wording is copied from supabase/functions/public/signing/token.ts.
 
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { ApiError, getSigningIntent, signingFrostComplete } from '../src/lib/api';

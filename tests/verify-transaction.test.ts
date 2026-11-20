@@ -1,15 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import type { SigningIntentDetails } from '../src/lib/api';
-import { base58Decode, base58Encode } from '../src/lib/base58';
+import { base58Decode } from '../src/lib/base58';
 import {
   associatedTokenAddress, parseLegacyMessage, SYSTEM_PROGRAM_ID, TOKEN_PROGRAM_ID,
   type LegacyMessage,
 } from '../src/lib/solana';
 import {
-  verifyTransaction, verifyIntentMatchesRequest, usdcToCents, TransactionMismatchError,
+  verifyTransaction, verifyIntentMatchesRequest, TransactionMismatchError,
 } from '../src/lib/verify-transaction';
 import {
-  key, ata, buildServerMessage, encodeMessage, USDC_MAINNET, type ServerBuild,
+  key, ata, base58Encode, buildServerMessage, encodeMessage, USDC_MAINNET, type ServerBuild,
 } from './helpers';
 
 const feePayer = key('fee-payer');
@@ -29,7 +29,6 @@ function details(overrides: Partial<SigningIntentDetails> = {}): SigningIntentDe
     to_name: null,
     network: 'mainnet-beta',
     action_type: 'withdraw',
-    fee_covered_by: 'Botwallet',
     expires_at: '2026-10-04T12:15:00Z',
     ...overrides,
   };
@@ -308,17 +307,5 @@ describe('verifyIntentMatchesRequest', () => {
   it('refuses a different amount or recipient', () => {
     expect(() => verifyIntentMatchesRequest(details(), { amountCents: 1235 })).toThrow(TransactionMismatchError);
     expect(() => verifyIntentMatchesRequest(details(), { toAddress: base58Encode(attacker) })).toThrow(TransactionMismatchError);
-  });
-});
-
-describe('usdcToCents', () => {
-  it.each([
-    ['12.34', 1234n], ['0.10', 10n], ['5', 500n], ['1.5', 150n], ['1000000.00', 100000000n],
-  ])('%s', (text, cents) => {
-    expect(usdcToCents(text)).toBe(cents);
-  });
-
-  it.each(['1.234', '-1.00', '', '1e3', ' 1.00', '1.'])('rejects "%s"', text => {
-    expect(usdcToCents(text)).toBeNull();
   });
 });

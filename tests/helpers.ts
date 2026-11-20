@@ -15,6 +15,37 @@ export function bytesToHex(bytes: Uint8Array): string {
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/** A little-endian number, as FROST scalars are written. */
+export function bytesToNumberLE(bytes: Uint8Array): bigint {
+  let n = 0n;
+  for (let i = bytes.length - 1; i >= 0; i--) n = (n << 8n) + BigInt(bytes[i]);
+  return n;
+}
+
+export function numberToBytes32LE(n: bigint): Uint8Array {
+  const out = new Uint8Array(32);
+  for (let i = 0; i < 32; i++) {
+    out[i] = Number(n & 0xffn);
+    n >>= 8n;
+  }
+  return out;
+}
+
+const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+/** Base58 (Bitcoin alphabet), for writing addresses and signatures in tests. The page only decodes. */
+export function base58Encode(bytes: Uint8Array): string {
+  let value = 0n;
+  for (const b of bytes) value = value * 256n + BigInt(b);
+  let text = '';
+  while (value > 0n) {
+    text = BASE58_ALPHABET[Number(value % 58n)] + text;
+    value /= 58n;
+  }
+  for (let i = 0; i < bytes.length && bytes[i] === 0; i++) text = '1' + text;
+  return text;
+}
+
 /** A fixed 32-byte public key for a label. */
 export function key(label: string): Uint8Array {
   return sha256(new TextEncoder().encode(label));

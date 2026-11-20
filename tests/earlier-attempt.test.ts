@@ -1,12 +1,9 @@
 // After a reload, or when another tab already started signing, the page must not offer a
 // fresh review for a withdrawal that may already be on its way.
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { earlierAttempt } from '../src/lib/earlier-attempt';
 import { mayHaveGoneThrough } from '../src/lib/errors';
-import {
-  markSubmitting, clearSubmitting, wasSubmitting, clearStoredSession,
-} from '../src/lib/fragment';
 
 const NOW = Date.parse('2026-10-04T12:00:00Z');
 const at = (seconds: number) => new Date(NOW + seconds * 1000).toISOString();
@@ -55,45 +52,5 @@ describe('mayHaveGoneThrough', () => {
     expect(f.retry).toBe('load');
     expect(f.retryLabel).toBe('Check Again');
     expect(f.endSession).toBe(false);
-  });
-});
-
-describe('submit marker', () => {
-  beforeEach(() => {
-    const store = new Map<string, string>();
-    vi.stubGlobal('sessionStorage', {
-      getItem: (k: string) => store.get(k) ?? null,
-      setItem: (k: string, v: string) => { store.set(k, v); },
-      removeItem: (k: string) => { store.delete(k); },
-    });
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it('is kept per link until the reply arrives or the session ends', () => {
-    expect(wasSubmitting('intent-1')).toBe(false);
-    markSubmitting('intent-1');
-    expect(wasSubmitting('intent-1')).toBe(true);
-    expect(wasSubmitting('intent-2')).toBe(false);
-
-    clearSubmitting();
-    expect(wasSubmitting('intent-1')).toBe(false);
-
-    markSubmitting('intent-1');
-    clearStoredSession();
-    expect(wasSubmitting('intent-1')).toBe(false);
-  });
-
-  it('does nothing when storage is unavailable', () => {
-    vi.stubGlobal('sessionStorage', {
-      getItem: () => { throw new Error('blocked'); },
-      setItem: () => { throw new Error('blocked'); },
-      removeItem: () => { throw new Error('blocked'); },
-    });
-    expect(() => markSubmitting('intent-1')).not.toThrow();
-    expect(wasSubmitting('intent-1')).toBe(false);
-    expect(() => clearSubmitting()).not.toThrow();
   });
 });

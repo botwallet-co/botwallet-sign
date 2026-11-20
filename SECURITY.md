@@ -17,7 +17,7 @@ We will acknowledge your report within 48 hours and provide an estimated timelin
 ## Scope
 
 This policy covers:
-- The signing portal source code (`src/lib/frost.ts`, `src/lib/mnemonic.ts`, `src/lib/api.ts`, `src/lib/fragment.ts`)
+- The signing portal source code in `src/lib/`, in particular `sign.ts` (the signing steps), `frost.ts`, `mnemonic.ts` and `key1-words.ts` (Key 1), `verify-transaction.ts`, `solana.ts`, `base58.ts` and `usdc.ts` (the transaction check before signing), `api.ts`, and `signing-request.ts` and `tab-session.ts` (the signing link)
 - The React UI components (`src/components/`)
 - The FROST partial signature computation and nonce generation logic
 - Memory zeroing of `Uint8Array` key buffers after use
@@ -40,5 +40,5 @@ The following are intentional design choices, not vulnerabilities:
 - **Partial signatures only** — The browser computes a FROST partial signature. The full signing key is never reconstructed in any single location (browser or server).
 - **Key 1 only** — The page accepts exactly the 12 words of Key 1. A pasted 24-word backup (Key 1 and Key 2, which together are the full key) is refused, not trimmed, so owners are never asked to put Key 2 into this page. After words are pasted, the page tries to empty the clipboard and tells the owner whether that worked; clipboard history and sync keep their own copy, which only the owner can delete.
 - **Memory zeroing** — All sensitive `Uint8Array` buffers (scalars, nonces, entropy, digests) are overwritten with zeros immediately after use via `zeroMemory()`. JavaScript strings and BigInts cannot be wiped: the 12 words (in input fields, React state and the joined phrase) and the BigInt values used in the signing math stay in the tab's memory until garbage collection. Owners should close the tab after signing.
-- **URL fragment for session data** — Transaction parameters (`intentId`, `signing_token`, `returnUrl`) are passed via URL fragments (`#`), which are never sent to the server in HTTP requests. The fragment is cleared from browser history immediately after parsing. So that a page refresh does not lose the session, the parsed parameters are kept in `sessionStorage` (this tab only, cleared when the tab closes) and removed after success, on cancel, or when the server reports the session expired or used. Key 1 is never stored.
+- **URL fragment for session data** — Transaction parameters (`intentId`, `token`, `returnUrl`, and `expected`: the amount and recipient entered in the dashboard, which Botwallet's details must match before the review is shown) are passed via URL fragments (`#`), which are never sent to the server in HTTP requests. The fragment is cleared from browser history immediately after parsing. So that a page refresh does not lose the session, the parsed parameters are kept in `sessionStorage` (this tab only, cleared when the tab closes) and removed after success, on cancel, or when the server reports the session expired or used. Key 1 is never stored.
 - **`returnUrl` allowlist** — The `returnUrl` parameter is validated against a strict origin allowlist to prevent open redirect attacks.

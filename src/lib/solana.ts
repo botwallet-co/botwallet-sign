@@ -13,16 +13,23 @@ export const TOKEN_PROGRAM_ID = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA';
 export const ASSOCIATED_TOKEN_PROGRAM_ID = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL';
 export const SYSTEM_PROGRAM_ID = '11111111111111111111111111111111';
 
+const MAINNET_USDC_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v';
+
 // Pinned here rather than taken from the server, so the server can't swap the token.
 const USDC_MINTS: Record<string, string> = {
-  'mainnet-beta': 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-  mainnet: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+  'mainnet-beta': MAINNET_USDC_MINT,
+  mainnet: MAINNET_USDC_MINT,
   // SPL Token Faucet's USDC-Dev, as used by the Botwallet backend on devnet
   devnet: 'Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr',
 };
 
 export function usdcMintFor(network: string): string | null {
   return Object.prototype.hasOwnProperty.call(USDC_MINTS, network) ? USDC_MINTS[network] : null;
+}
+
+/** True for the network names that use the mainnet USDC mint, so explorer links follow the same names as the check. */
+export function isMainnet(network: string): boolean {
+  return usdcMintFor(network) === MAINNET_USDC_MINT;
 }
 
 export interface CompiledInstruction {

@@ -1,4 +1,8 @@
 import { ApiError } from './api';
+import { kindTitle, type ActionKind } from './action';
+import {
+  isRoundInProgress, isRoundTimedOut, isStillConfirming, namedKind, statusInWording,
+} from './server-replies';
 import { TransactionMismatchError } from './verify-transaction';
 
 /**
@@ -10,8 +14,6 @@ import { TransactionMismatchError } from './verify-transaction';
  *   complete signing_frost_complete, which submits the transaction
  */
 export type SignPhase = 'load' | 'prepare' | 'init' | 'sign' | 'complete';
-
-export type ActionKind = 'withdrawal' | 'transfer';
 
 export interface Failure {
   title: string;
@@ -35,7 +37,7 @@ const PRE_SUBMIT_CODES = new Set(['VALIDATION_ERROR', 'NOT_FOUND', 'MISSING_PUBL
 
 function notSent(kind: ActionKind, message: string, next: string, code?: string): Failure {
   return {
-    title: kind === 'transfer' ? 'Transfer Not Sent' : 'Withdrawal Not Sent',
+    title: `${kindTitle(kind)} Not Sent`,
     message,
     next,
     tone: 'error',
@@ -61,7 +63,7 @@ function unconfirmed(kind: ActionKind, code?: string): Failure {
  * server reports the link as completed or failed. Right after signing, SigningFlow shows
  * this as a confirming screen that checks by itself (confirming.ts).
  */
-export function stillConfirming(kind: ActionKind): Failure {
+function stillConfirming(kind: ActionKind): Failure {
   return {
     title: 'Confirming on Solana',
     message: `Your ${kind} was sent to Solana and is waiting for the network to confirm it. It may have gone through already.`,
@@ -81,9 +83,8 @@ export function afterConfirming(outcome: 'failed' | 'unknown', kind: ActionKind)
   return unconfirmed(kind);
 }
 
-function usedLink(serverMessage: string, kind: ActionKind): Failure {
-  // The server says "This signing session is already <status>".
-  const status = /already (completed|failed|expired)\b/i.exec(serverMessage)?.[1]?.toLowerCase();
+// `status` is the link's status as the server's reply words it (server-replies.ts).
+function usedLink(status: string | undefined, kind: ActionKind): Failure {
   if (status === 'completed') {
     return {
       title: 'Already Completed',
@@ -157,7 +158,6 @@ export function describeFailure(error: unknown, phase: SignPhase, kind: ActionKi
   if (error instanceof TransactionMismatchError) return mismatch(phase, kind);
 
   const code = error instanceof ApiError ? error.code : 'CLIENT_ERROR';
-  const serverMessage = error instanceof ApiError ? error.message : '';
   const startNew = `Start a new ${kind} from your dashboard.`;
 
   switch (code) {
@@ -179,13 +179,10 @@ export function describeFailure(error: unknown, phase: SignPhase, kind: ActionKi
       };
     case 'INTENT_COMPLETED':
       // Sent to Solana with this link, and not confirmed yet. The server names the kind.
-      if (/still being confirmed/i.test(serverMessage)) {
-        const named = /\b(transfer|withdrawal)\b/i.exec(serverMessage)?.[1]?.toLowerCase();
-        return stillConfirming(named === 'transfer' || named === 'withdrawal' ? named : kind);
-      }
+      if (isStillConfirming(error)) return stillConfirming(namedKind(error) ?? kind);
       // An earlier attempt with this link is still inside its 60-second signing round
       // (another tab, or a reply that never arrived). The server frees the link after that.
-      if (/already being signed/i.test(serverMessage)) {
+      if (isRoundInProgress(error)) {
         return {
           title: 'Already Signing',
           message: `This ${kind} is already being signed, maybe in another tab.`,
@@ -195,7 +192,10 @@ export function describeFailure(error: unknown, phase: SignPhase, kind: ActionKi
           endSession: false,
         };
       }
-      return usedLink(serverMessage, kind);
+      // By the wording only, not intent_status: the two agree in every reply the server
+      // sends, and where they didn't, going by the field could tell the owner nothing was
+      // sent when the wording says it went through.
+      return usedLink(statusInWording(error), kind);
     case 'KEY_MISMATCH':
       return {
         title: "Key 1 Doesn't Match",
@@ -211,7 +211,7 @@ export function describeFailure(error: unknown, phase: SignPhase, kind: ActionKi
       // SESSION_EXPIRED replies can answer a repeated request while the first one is still
       // submitting (browsers re-send a request whose connection dropped), so their outcome
       // is unknown.
-      if (/60 second limit/i.test(serverMessage) && /nothing was sent/i.test(serverMessage)) {
+      if (isRoundTimedOut(error)) {
         return {
           title: 'Signing Timed Out',
           message: 'This took longer than 60 seconds, so nothing was sent.',

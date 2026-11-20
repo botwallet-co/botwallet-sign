@@ -1,9 +1,16 @@
-// Key 1 entry: which word counts fill the boxes, what the owner is told otherwise, and
-// the help with words that aren't in the word list.
+// Key 1 entry: which word counts fill the boxes, what the owner is told otherwise, the help
+// with words that aren't in the word list, and when the boxes hold a valid Key 1.
 
 import { describe, it, expect } from 'vitest';
+import { entropyToMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { completeWord, suggestWords, wordCountProblem } from '../src/lib/mnemonic';
+import {
+  checkWords, completeWord, isPrefixOfLongerWord, splitWords, suggestWords, wordCountProblem,
+} from '../src/lib/key1-words';
+import { hexToBytes } from './helpers';
+
+// A valid Key 1: the words for 16 bytes 00 01 02 ... 0f
+const KEY1 = entropyToMnemonic(hexToBytes('000102030405060708090a0b0c0d0e0f'), wordlist).split(' ');
 
 describe('wordCountProblem', () => {
   it('accepts exactly 12 words from a paste, the button or a keyboard', () => {
@@ -30,6 +37,33 @@ describe('wordCountProblem', () => {
     expect(wordCountProblem(0, true)).toMatch(/no words on your clipboard/);
     expect(wordCountProblem(1, true)).toBe('Found 1 word. Key 1 is 12 words, so paste just those.');
     expect(wordCountProblem(6, true)).toBe('Found 6 words. Key 1 is 12 words, so paste just those.');
+  });
+});
+
+describe('splitWords', () => {
+  it('drops numbering, punctuation and case from pasted text', () => {
+    expect(splitWords('1. Legal, winner;thank\n2) YEAR\t wave ')).toEqual(['legal', 'winner', 'thank', 'year', 'wave']);
+  });
+
+  it('finds no words in empty or punctuation-only text', () => {
+    expect(splitWords('')).toEqual([]);
+    expect(splitWords(' 1. 2. , ; ')).toEqual([]);
+  });
+
+  it('keeps a whole 24-word backup countable, so it can be refused', () => {
+    expect(splitWords([...KEY1, ...KEY1].join(' '))).toHaveLength(24);
+  });
+});
+
+describe('isPrefixOfLongerWord', () => {
+  it('is true for words that can still grow into another word', () => {
+    expect(isPrefixOfLongerWord('act')).toBe(true); // action, actress
+    expect(isPrefixOfLongerWord('leg')).toBe(true); // legal, legend
+  });
+
+  it('is false for words nothing longer starts with', () => {
+    expect(isPrefixOfLongerWord('legal')).toBe(false);
+    expect(isPrefixOfLongerWord('zoo')).toBe(false);
   });
 });
 
@@ -74,5 +108,32 @@ describe('suggestWords', () => {
   it('suggests nothing when too many words are one typo away', () => {
     expect(suggestWords('sam', 100)).toEqual(['sad', 'same', 'say', 'slam']);
     expect(suggestWords('sam')).toEqual([]);
+  });
+});
+
+describe('checkWords', () => {
+  it('waits until all 12 boxes are filled in', () => {
+    expect(checkWords(Array(12).fill(''))).toBeNull();
+    expect(checkWords([...KEY1.slice(0, 11), ''])).toBeNull();
+  });
+
+  it('accepts a valid Key 1 and joins its words', () => {
+    expect(checkWords(KEY1)).toEqual({ ok: true, mnemonic: KEY1.join(' ') });
+  });
+
+  it('names every word that is not in the word list', () => {
+    const words = [...KEY1];
+    words[2] = 'legl';
+    words[9] = 'zzzz';
+    expect(checkWords(words)).toEqual({ ok: false, bad: [2, 9] });
+  });
+
+  it('refuses 12 real words that are not a valid Key 1', () => {
+    // Swapping two different words breaks the checksum
+    const swapped = [KEY1[1], KEY1[0], ...KEY1.slice(2)];
+    expect(KEY1[0]).not.toBe(KEY1[1]);
+    const result = checkWords(swapped);
+    expect(result).toMatchObject({ ok: false, bad: [] });
+    expect(result?.ok === false && result.message).toMatch(/aren't a valid Key 1/);
   });
 });
